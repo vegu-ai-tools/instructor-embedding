@@ -307,7 +307,7 @@ class INSTRUCTORTransformer(Transformer):
             )
 
         if load_model:
-            self._load_model(self.model_name_or_path, config, cache_dir, **model_args)
+            self._load_model(self.model_name_or_path, config, cache_dir, backend="torch", is_peft_model=False, **model_args)
         self.tokenizer = AutoTokenizer.from_pretrained(
             tokenizer_name_or_path
             if tokenizer_name_or_path is not None
@@ -517,7 +517,7 @@ class INSTRUCTOR(SentenceTransformer):
 
         return batched_input_features, labels
 
-    def _load_sbert_model(self, model_path, token=None, cache_folder=None, revision=None, trust_remote_code=False):
+    def _load_sbert_model(self, model_path, token=None, cache_folder=None, revision=None, trust_remote_code=False, local_files_only=False, **kwargs):
         """
         Loads a full sentence-transformers model
         """
@@ -531,11 +531,13 @@ class INSTRUCTOR(SentenceTransformer):
             download_kwargs = {
                 "repo_id": model_path,
                 "revision": revision,
-                "library_name": "InstructorEmbedding",
+                "library_name": "sentence-transformers",
                 "token": token,
                 "cache_dir": cache_folder,
                 "tqdm_class": disabled_tqdm,
+                "local_files_only": local_files_only,
             }
+            model_path = snapshot_download(**download_kwargs)
 
         # Check if the config_sentence_transformers.json file exists (exists since v2 of the framework)
         config_sentence_transformers_json_path = os.path.join(
@@ -571,8 +573,8 @@ class INSTRUCTOR(SentenceTransformer):
                 module_class = import_from_string(module_config["type"])
             module = module_class.load(os.path.join(model_path, module_config["path"]))
             modules[module_config["name"]] = module
-
-        return modules
+        
+        return modules, {}
 
     def encode(
         self,
